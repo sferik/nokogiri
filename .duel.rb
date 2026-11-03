@@ -1,0 +1,61 @@
+# frozen_string_literal: true
+
+require "shellwords"
+
+# Duel's configuration: https://github.com/sferik/duel-ruby/blob/main/docs/configuration.md
+#
+# Duel follows conventions, so set only what differs: benchmarks are in
+# duel/**/*_duel.rb, each version's lib/ is first on the load path, a
+# change is compared when it touches lib/ or ext/ (or the benchmarks, or
+# this file), and releases are tagged v*.
+Duel.configure do |c|
+  # The library each version's workers require (from the gemspec, unless
+  # this says otherwise).
+  # c.library = "nokogiri"
+
+  # Builds each version's C extension against the libxml2 and libxslt
+  # that Nokogiri packages, as its native gems ship them. Those libraries
+  # are built into ports/, which takes most of the build's time, under
+  # each library's own version. So the baseline's checkout uses the
+  # candidate's ports/ when both have the same dependencies.yml, patches
+  # and extconf.rb (the files CI keys its ports/ cache by), and builds
+  # its own when they differ. libgumbo is built with the extension, so
+  # each version has its own.
+  ports = File.join(c.root, "ports")
+  same_ports = ["dependencies.yml", "patches", "ext/nokogiri/extconf.rb"].map do |path|
+    "diff -rq #{path} #{File.join(c.root, path).shellescape} > /dev/null"
+  end
+  c.build = <<~SH
+    if [ ! -e ports ] && [ -d #{ports.shellescape} ] && #{same_ports.join(" && ")}; then
+      ln -s #{ports.shellescape} ports
+    fi
+    bundle exec rake compile
+  SH
+
+  # Compare a change to what else decides how fast Nokogiri is: the
+  # libgumbo sources, the packaged libraries' versions and patches, and
+  # the Perf workflow.
+  c.watch += ["gumbo-parser/src", "dependencies.yml", "patches", ".github/workflows/perf.yml"]
+
+  # When the workflow comments on a pull request with the report: :always,
+  # :results (passed or failed), :failures (failed, or couldn't compare),
+  # or :never.
+  # c.comment = :failures
+
+  # Which runs a regression fails: :every_run, or :pull_requests, for a
+  # project where people push to main directly (on GitHub Actions, another
+  # run warns and passes, and a pushed commit gets the comment instead,
+  # from a workflow job written only where this is set: see docs/ci.md).
+  # c.fail_on = :every_run
+
+  # A label that accepts a regression in a pull request, for a change
+  # that's slower on purpose (nil for none).
+  c.accept_label = "duel: accept"
+
+  # What the workflow compares a push with: :before (the commit before it),
+  # or :last_passed (the last commit Duel passed, which a branch,
+  # duel/passed/main, marks), so small slowdowns add up until they fail.
+  # (A workflow job moves the branch, written only where this is set: see
+  # docs/ci.md.)
+  # c.push_base = :before
+end

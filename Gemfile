@@ -23,6 +23,13 @@ group :development do
   gem "rubyzip", "~> 3.7.0"
   gem "simplecov", "1.2.0"
 
+  # performance regression guards (duel requires Ruby 3.4 or later, and
+  # its fiddle needs libffi to build, which the Alpine images don't have)
+  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3.4") && !RUBY_PLATFORM.include?("musl")
+    gem "duel", "~> 0.1.8"
+  end
+  gem "stackprof", "0.2.28", platforms: :mri
+
   # rubocop
   unless RUBY_PLATFORM == "java" || ENV["APPVEYOR"]
     gem "standard", "1.57.0"
