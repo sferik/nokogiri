@@ -20,6 +20,7 @@ task :check_manifest, [:verbose] do |_, args|
     .vscode
     adr
     coverage
+    duel
     gems
     html
     issues
@@ -38,6 +39,7 @@ task :check_manifest, [:verbose] do |_, args|
     [0-9]*
   }
   ignore_files = %w[
+    .duel.rb
     .editorconfig
     .gitignore
     .gitmodules
