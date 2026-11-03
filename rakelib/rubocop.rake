@@ -7,10 +7,12 @@ begin
     class << self
       def common_options(task)
         task.patterns += [
+          ".duel.rb",
           "Gemfile",
           "Rakefile",
           "nokogiri.gemspec",
           "bin",
+          "duel",
           "ext",
           "lib",
           "oci-images",
